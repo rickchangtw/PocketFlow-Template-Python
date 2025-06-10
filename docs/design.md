@@ -142,7 +142,6 @@ flowchart TD
           - GitHub: [pystoi](https://github.com/mpariente/pystoi)
           - Paper: "Short-Time Objective Intelligibility Measure" (Taal et al., 2011)
         - 語音質量感知評估(POLQA)
-          - GitHub: [pysepm](https://github.com/schmiph2/pysepm)
           - Paper: "ITU-T P.863: Perceptual objective listening quality assessment" (ITU-T, 2018)
      
      4. **語音內容比對**
