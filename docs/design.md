@@ -1924,3 +1924,155 @@ shared = {
                  # 3. 驗證優化效果
                  self._validate_optimization()
          ```
+
+## Project Structure
+
+```
+voiceclone-optimizer/
+├── README.md                 # 項目說明文檔
+├── requirements.txt          # 項目依賴
+├── setup.py                 # 安裝配置
+├── docs/                    # 文檔目錄
+│   ├── design.md           # 設計文檔
+│   ├── api.md              # API文檔
+│   └── user_guide.md       # 用戶指南
+├── src/                     # 源代碼目錄
+│   ├── __init__.py
+│   ├── main.py             # 主程序入口
+│   ├── config/             # 配置文件目錄
+│   │   ├── __init__.py
+│   │   ├── settings.py     # 基本設置
+│   │   └── logging.py      # 日誌配置
+│   ├── core/               # 核心功能目錄
+│   │   ├── __init__.py
+│   │   ├── voice/          # 語音處理模塊
+│   │   │   ├── __init__.py
+│   │   │   ├── preprocessor.py    # 預處理器
+│   │   │   ├── feature_extractor.py # 特徵提取
+│   │   │   └── denoiser.py        # 降噪處理
+│   │   ├── analysis/       # 分析模塊
+│   │   │   ├── __init__.py
+│   │   │   ├── similarity.py      # 相似度計算
+│   │   │   └── quality.py         # 質量評估
+│   │   └── optimization/   # 優化模塊
+│   │       ├── __init__.py
+│   │       ├── parameter_optimizer.py # 參數優化
+│   │       └── model_optimizer.py     # 模型優化
+│   ├── utils/              # 工具函數目錄
+│   │   ├── __init__.py
+│   │   ├── file_manager.py    # 文件管理
+│   │   ├── progress_tracker.py # 進度追蹤
+│   │   ├── error_handler.py   # 錯誤處理
+│   │   └── nl_interface.py    # 自然語言接口
+│   ├── api/                # API接口目錄
+│   │   ├── __init__.py
+│   │   ├── routes/        # 路由定義
+│   │   │   ├── __init__.py
+│   │   │   ├── upload.py      # 上傳接口
+│   │   │   ├── process.py     # 處理接口
+│   │   │   └── download.py    # 下載接口
+│   │   └── websocket.py   # WebSocket處理
+│   ├── models/            # 數據模型目錄
+│   │   ├── __init__.py
+│   │   ├── task.py       # 任務模型
+│   │   └── user.py       # 用戶模型
+│   ├── services/         # 服務層目錄
+│   │   ├── __init__.py
+│   │   ├── voice_service.py    # 語音服務
+│   │   ├── analysis_service.py # 分析服務
+│   │   └── optimization_service.py # 優化服務
+│   └── web/              # Web界面目錄
+│       ├── __init__.py
+│       ├── static/       # 靜態資源
+│       │   ├── css/     # 樣式文件
+│       │   ├── js/      # JavaScript文件
+│       │   └── images/  # 圖片資源
+│       └── templates/    # 模板文件
+├── tests/               # 測試目錄
+│   ├── __init__.py
+│   ├── unit/           # 單元測試
+│   ├── integration/    # 集成測試
+│   └── e2e/           # 端到端測試
+├── scripts/            # 腳本目錄
+│   ├── setup.sh       # 環境設置腳本
+│   └── deploy.sh      # 部署腳本
+└── data/              # 數據目錄
+    ├── raw/          # 原始數據
+    ├── processed/    # 處理後數據
+    └── models/       # 模型文件
+```
+
+### 目錄說明
+
+1. **docs/** - 項目文檔
+   - 包含設計文檔、API文檔和用戶指南
+   - 使用Markdown格式編寫
+
+2. **src/** - 源代碼
+   - **config/** - 配置文件
+     - 包含基本設置和日誌配置
+   - **core/** - 核心功能
+     - **voice/** - 語音處理相關功能
+     - **analysis/** - 分析相關功能
+     - **optimization/** - 優化相關功能
+   - **utils/** - 工具函數
+     - 包含各種通用工具類
+   - **api/** - API接口
+     - 包含所有REST API和WebSocket接口
+   - **models/** - 數據模型
+     - 定義數據庫模型和數據結構
+   - **services/** - 服務層
+     - 實現業務邏輯
+   - **web/** - Web界面
+     - 包含前端代碼和資源
+
+3. **tests/** - 測試代碼
+   - 包含單元測試、集成測試和端到端測試
+
+4. **scripts/** - 腳本文件
+   - 包含環境設置和部署腳本
+
+5. **data/** - 數據文件
+   - 包含原始數據、處理後數據和模型文件
+
+### 文件命名規範
+
+1. **Python文件**
+   - 使用小寫字母和下劃線
+   - 例如：`feature_extractor.py`, `voice_service.py`
+
+2. **配置文件**
+   - 使用小寫字母和下劃線
+   - 例如：`settings.py`, `logging.py`
+
+3. **測試文件**
+   - 以`test_`開頭
+   - 例如：`test_feature_extractor.py`
+
+4. **模板文件**
+   - 使用小寫字母和下劃線
+   - 例如：`index.html`, `upload_form.html`
+
+5. **靜態資源**
+   - CSS文件：小寫字母和連字符
+   - JavaScript文件：小寫字母和連字符
+   - 圖片文件：小寫字母和連字符
+
+### 代碼組織原則
+
+1. **模塊化**
+   - 每個模塊負責特定功能
+   - 模塊之間低耦合高內聚
+
+2. **分層架構**
+   - 表現層（Web/API）
+   - 業務邏輯層（Services）
+   - 數據訪問層（Models）
+
+3. **依賴管理**
+   - 使用requirements.txt管理依賴
+   - 使用setup.py進行安裝配置
+
+4. **配置分離**
+   - 將配置信息從代碼中分離
+   - 使用配置文件管理不同環境的設置
