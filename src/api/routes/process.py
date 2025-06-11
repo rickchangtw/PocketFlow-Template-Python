@@ -1,9 +1,9 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from src.config.logging import logger
-from src.utils.error_handler import VoiceCloneError
+from src.utils.error_handler import VoiceCloneError, handle_error
 from src.models.task import Task, TaskResponse
 from src.models.user import User
 from src.models.base import get_db
@@ -11,6 +11,7 @@ from src.api.routes.upload import get_current_user
 from src.services.voice_service import voice_service
 from src.services.analysis_service import analysis_service
 from src.services.optimization_service import optimization_service
+from src.utils.file_manager import file_manager
 
 router = APIRouter()
 
@@ -35,8 +36,7 @@ async def get_tasks(
         return query.offset(skip).limit(limit).all()
         
     except Exception as e:
-        logger.error(f"Error fetching tasks: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        handle_error(e, "Error getting tasks")
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
@@ -54,13 +54,15 @@ async def get_task(
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
             
+        if task.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this task")
+            
         return task
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching task {task_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        handle_error(e, "Error getting task")
 
 @router.post("/tasks/{task_id}/cancel")
 async def cancel_task(
@@ -78,11 +80,11 @@ async def cancel_task(
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
             
-        if task.status not in ["pending", "processing"]:
-            raise HTTPException(
-                status_code=400,
-                detail="Can only cancel pending or processing tasks"
-            )
+        if task.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this task")
+            
+        if task.status == "completed":
+            raise HTTPException(status_code=400, detail="Cannot cancel completed task")
             
         # Cancel task processing
         await voice_service.cancel_task(task_id)
@@ -96,8 +98,7 @@ async def cancel_task(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error cancelling task {task_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        handle_error(e, "Error cancelling task")
 
 @router.post("/tasks/{task_id}/retry", response_model=TaskResponse)
 async def retry_task(
@@ -135,5 +136,68 @@ async def retry_task(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrying task {task_id}: {str(e)}")
+        handle_error(e, "Error retrying task")
+
+@router.post("/tasks/cancel-all", response_model=List[TaskResponse])
+async def cancel_all_tasks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Cancel all pending tasks for current user"""
+    try:
+        tasks = db.query(Task).filter(
+            Task.user_id == current_user.id,
+            Task.status.in_(["pending", "processing"])
+        ).all()
+        
+        for task in tasks:
+            task.status = "cancelled"
+        
+        db.commit()
+        return tasks
+    except Exception as e:
+        handle_error(e, "Error cancelling all tasks")
+
+@router.get("/preview/{task_id}")
+async def preview_file(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Preview processed file"""
+    try:
+        task = db.query(Task).filter(
+            Task.id == task_id,
+            Task.user_id == current_user.id
+        ).first()
+        
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+            
+        if task.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this task")
+            
+        if task.status != "completed":
+            raise HTTPException(
+                status_code=400,
+                detail="File is not ready for preview"
+            )
+            
+        file_path = file_manager.get_file(task.output_file)
+        if not file_path:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # 設置響應頭
+        headers = {
+            'Content-Disposition': 'inline',
+            'Content-Type': 'audio/wav' if task.output_file.endswith('.wav') else 'audio/mpeg'
+        }
+        
+        return Response(content=file_path.read_bytes(), headers=headers)
+        
+    except VoiceCloneError as e:
+        logger.error(f"Error previewing file: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        handle_error(e, "Error during preview")
         raise HTTPException(status_code=500, detail="Internal server error")

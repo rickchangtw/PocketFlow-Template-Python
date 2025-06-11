@@ -3,9 +3,7 @@ import logging.handlers
 import os
 from pathlib import Path
 
-from src.config.settings import Settings
-
-settings = Settings()
+from src.core.config import settings
 
 def setup_logging():
     """Setup logging configuration"""

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Clone Optimizer - 上傳檔案</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>上傳音訊檔案</h1>
+        <div class="upload-container">
+            <form id="upload-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file-upload">選擇檔案：</label>
+                    <input type="file" id="file-upload" name="file" accept=".wav,.mp3,.ogg">
+                </div>
+                <button type="submit" id="upload-button">上傳</button>
+            </form>
+        </div>
+    </div>
+    <div id="progress-container" style="display:none; margin-top:20px;">
+        <progress id="progress-bar" value="0" max="100" style="width:100%;"></progress>
+        <span id="progress-status">處理中…</span>
+    </div>
+    <script src="/static/js/upload.js"></script>
+    <script>
+    let currentTaskId = null;
+    function pollStatus(taskId) {
+        fetch(`/api/upload_status?task_id=${taskId}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('progress-container').style.display = 'block';
+                document.getElementById('progress-bar').value = data.progress;
+                document.getElementById('progress-status').innerText = data.status;
+                if (data.progress < 100) {
+                    setTimeout(() => pollStatus(taskId), 2000);
+                } else {
+                    document.getElementById('progress-status').innerText = '處理完成！';
+                }
+            });
+    }
+
+    // 假設你在上傳成功的 callback 取得 task_id
+    function onUploadSuccess(task_id) {
+        currentTaskId = task_id;
+        pollStatus(task_id);
+    }
+    </script>
+</body>
+</html> 

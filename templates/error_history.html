@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>錯誤歷史記錄</h1>
+    
+    <div class="error-history-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>檔案路徑</th>
+                    <th>錯誤類型</th>
+                    <th>錯誤訊息</th>
+                    <th>修正狀態</th>
+                    <th>建立時間</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for error in errors %}
+                <tr class="error-row">
+                    <td>{{ error.file_path }}</td>
+                    <td class="error-type">{{ error.error_type }}</td>
+                    <td class="error-message">{{ error.error_message }}</td>
+                    <td>{{ error.correction_status }}</td>
+                    <td>{{ error.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %} 

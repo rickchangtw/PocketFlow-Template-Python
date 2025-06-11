@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>修正歷史記錄</h1>
+    
+    <div class="correction-history-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>檔案路徑</th>
+                    <th>錯誤類型</th>
+                    <th>修正狀態</th>
+                    <th>已應用修正</th>
+                    <th>剩餘問題</th>
+                    <th>驗證結果</th>
+                    <th>建立時間</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for correction in corrections %}
+                <tr class="correction-row">
+                    <td>{{ correction.error.file_path if correction.error else '' }}</td>
+                    <td>{{ correction.error.error_type if correction.error else '' }}</td>
+                    <td class="correction-status">{{ '成功' if correction.success else '失敗' }}</td>
+                    <td class="applied-fix">{{ correction.applied_fixes|tojson if correction.applied_fixes else '' }}</td>
+                    <td>{{ correction.remaining_issues|tojson if correction.remaining_issues else '' }}</td>
+                    <td class="verification-status">{{ correction.verification_result|tojson if correction.verification_result else '' }}</td>
+                    <td>{{ correction.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %} 

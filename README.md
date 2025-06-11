@@ -15,3 +15,13 @@ This is a project template for Agentic Coding with [Pocket Flow](https://github.
 
   - Check out the [Agentic Coding Guidance](https://the-pocket.github.io/PocketFlow/guide.html)
   - Check out the [YouTube Tutorial](https://www.youtube.com/@ZacharyLLM?sub_confirmation=1)
+
+## 資料庫初始化
+
+每次你有 model/schema 變動時，請先執行：
+
+```sh
+python scripts/init_db.py
+```
+
+這會自動建立（或更新）所有 SQLite 資料表，確保資料庫結構正確。

@@ -25,6 +25,8 @@ class User(Base):
     # API key for programmatic access
     api_key = Column(String, unique=True, nullable=True)
     
+    tasks = relationship("Task", back_populates="user")
+    
     def __init__(
         self,
         username: str,

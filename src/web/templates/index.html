@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>語音克隆優化器</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .upload-area:hover {
+            border-color: #0d6efd;
+        }
+        .upload-area.dragover {
+            border-color: #0d6efd;
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+        .task-list {
+            margin-top: 20px;
+        }
+        .task-item {
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .task-item:hover {
+            background-color: #f8f9fa;
+        }
+        .progress {
+            height: 20px;
+        }
+        .download-btn {
+            display: none;
+        }
+        .task-item.completed .download-btn {
+            display: inline-block;
+        }
+        .preview-audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+        .batch-actions {
+            margin-bottom: 20px;
+        }
+        .parameters-form {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-top: 5px;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">語音克隆優化器</h1>
+        
+        <!-- 參數設置 -->
+        <div class="parameters-form">
+            <h4>處理參數設置</h4>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="noiseReduction" class="form-label">降噪強度</label>
+                        <input type="range" class="form-range" id="noiseReduction" min="0" max="100" value="50">
+                        <div class="d-flex justify-content-between">
+                            <small>低</small>
+                            <small>高</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="qualityLevel" class="form-label">音質等級</label>
+                        <select class="form-select" id="qualityLevel">
+                            <option value="low">低</option>
+                            <option value="medium" selected>中</option>
+                            <option value="high">高</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label for="outputFormat" class="form-label">輸出格式</label>
+                        <select class="form-select" id="outputFormat">
+                            <option value="wav" selected>WAV</option>
+                            <option value="mp3">MP3</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 上傳區域 -->
+        <div class="upload-area" id="uploadArea">
+            <h3>拖放檔案到這裡或點擊上傳</h3>
+            <p class="text-muted">支援 .wav 和 .mp3 格式</p>
+            <input type="file" id="fileInput" accept=".wav,.mp3" multiple style="display: none;">
+        </div>
+
+        <!-- 批量操作按鈕 -->
+        <div class="batch-actions">
+            <button class="btn btn-primary" onclick="downloadAll()">
+                <i class="bi bi-download"></i> 下載所有完成檔案
+            </button>
+            <button class="btn btn-danger" onclick="cancelAll()">
+                <i class="bi bi-x-circle"></i> 取消所有任務
+            </button>
+        </div>
+
+        <!-- 任務列表 -->
+        <div class="task-list" id="taskList">
+            <!-- 任務項目將在這裡動態添加 -->
+        </div>
+    </div>
+
+    <!-- Toast 通知容器 -->
+    <div class="toast-container"></div>
+
+    <script>
+        // 上傳區域事件處理
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const taskList = document.getElementById('taskList');
+
+        // 拖放事件處理
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            uploadArea.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            uploadArea.classList.remove('dragover');
+        }
+
+        // 處理檔案上傳
+        uploadArea.addEventListener('drop', handleDrop, false);
+        uploadArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFiles);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles({ target: { files } });
+        }
+
+        function handleFiles(e) {
+            const files = [...e.target.files];
+            files.forEach(uploadFile);
+        }
+
+        // 顯示 Toast 通知
+        function showToast(message, type = 'success') {
+            const toastContainer = document.querySelector('.toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast align-items-center text-white bg-${type} border-0`;
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            
+            toast.innerHTML = `
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+            
+            toast.addEventListener('hidden.bs.toast', () => {
+                toast.remove();
+            });
+        }
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // 添加處理參數
+            formData.append('parameters', JSON.stringify({
+                noiseReduction: document.getElementById('noiseReduction').value,
+                qualityLevel: document.getElementById('qualityLevel').value,
+                outputFormat: document.getElementById('outputFormat').value
+            }));
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || '上傳失敗');
+                }
+
+                const result = await response.json();
+                addTaskToList(result);
+                showToast('檔案上傳成功');
+            } catch (error) {
+                showToast(error.message, 'danger');
+            }
+        }
+
+        // 添加任務到列表
+        function addTaskToList(task) {
+            const taskItem = document.createElement('div');
+            taskItem.className = 'task-item';
+            taskItem.id = `task-${task.id}`;
+            taskItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">${task.input_file}</h5>
+                        <p class="mb-1 text-muted">狀態: <span class="status">${task.status}</span></p>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary download-btn" onclick="downloadFile('${task.id}')">
+                            <i class="bi bi-download"></i> 下載結果
+                        </button>
+                        <button class="btn btn-danger" onclick="cancelTask('${task.id}')">
+                            <i class="bi bi-x-circle"></i> 取消
+                        </button>
+                    </div>
+                </div>
+                <div class="progress mt-2">
+                    <div class="progress-bar" role="progressbar" style="width: ${task.progress}%">
+                        ${task.progress}%
+                    </div>
+                </div>
+                ${task.status === 'completed' ? `
+                    <audio class="preview-audio" controls>
+                        <source src="/api/preview/${task.id}" type="audio/wav">
+                        您的瀏覽器不支援音頻播放
+                    </audio>
+                ` : ''}
+            `;
+            taskList.insertBefore(taskItem, taskList.firstChild);
+        }
+
+        // 更新任務狀態
+        async function updateTaskStatus() {
+            try {
+                const response = await fetch('/api/tasks');
+                if (!response.ok) {
+                    throw new Error('獲取任務列表失敗');
+                }
+
+                const tasks = await response.json();
+                tasks.forEach(task => {
+                    const taskElement = document.getElementById(`task-${task.id}`);
+                    if (taskElement) {
+                        // 更新現有任務
+                        taskElement.querySelector('.status').textContent = task.status;
+                        taskElement.querySelector('.progress-bar').style.width = `${task.progress}%`;
+                        taskElement.querySelector('.progress-bar').textContent = `${task.progress}%`;
+                        
+                        if (task.status === 'completed') {
+                            taskElement.classList.add('completed');
+                            // 如果還沒有音頻預覽，添加它
+                            if (!taskElement.querySelector('audio')) {
+                                const audioHtml = `
+                                    <audio class="preview-audio" controls>
+                                        <source src="/api/preview/${task.id}" type="audio/wav">
+                                        您的瀏覽器不支援音頻播放
+                                    </audio>
+                                `;
+                                taskElement.insertAdjacentHTML('beforeend', audioHtml);
+                            }
+                        }
+                    } else {
+                        // 添加新任務
+                        addTaskToList(task);
+                    }
+                });
+            } catch (error) {
+                console.error('更新任務狀態失敗:', error);
+                showToast('更新任務狀態失敗', 'danger');
+            }
+        }
+
+        // 下載檔案
+        async function downloadFile(taskId) {
+            try {
+                const response = await fetch(`/api/download/${taskId}`);
+                if (!response.ok) {
+                    throw new Error('下載失敗');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `processed_${taskId}.wav`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                showToast('檔案下載成功');
+            } catch (error) {
+                showToast(`下載錯誤: ${error.message}`, 'danger');
+            }
+        }
+
+        // 批量下載
+        async function downloadAll() {
+            try {
+                const response = await fetch('/api/tasks');
+                if (!response.ok) {
+                    throw new Error('獲取任務列表失敗');
+                }
+
+                const tasks = await response.json();
+                const completedTasks = tasks.filter(task => task.status === 'completed');
+                
+                if (completedTasks.length === 0) {
+                    showToast('沒有可下載的檔案', 'warning');
+                    return;
+                }
+
+                // 創建一個 zip 檔案
+                const zip = new JSZip();
+                
+                // 下載所有檔案並添加到 zip
+                for (const task of completedTasks) {
+                    const fileResponse = await fetch(`/api/download/${task.id}`);
+                    if (!fileResponse.ok) continue;
+                    
+                    const blob = await fileResponse.blob();
+                    zip.file(`processed_${task.id}.wav`, blob);
+                }
+                
+                // 生成並下載 zip
+                const content = await zip.generateAsync({type: 'blob'});
+                const url = window.URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'processed_files.zip';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showToast('所有檔案下載成功');
+            } catch (error) {
+                showToast(`批量下載錯誤: ${error.message}`, 'danger');
+            }
+        }
+
+        // 取消任務
+        async function cancelTask(taskId) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}/cancel`, {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('取消任務失敗');
+                }
+                
+                showToast('任務已取消');
+                updateTaskStatus();
+            } catch (error) {
+                showToast(`取消任務錯誤: ${error.message}`, 'danger');
+            }
+        }
+
+        // 取消所有任務
+        async function cancelAll() {
+            try {
+                const response = await fetch('/api/tasks/cancel-all', {
+                    method: 'POST'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('取消所有任務失敗');
+                }
+                
+                showToast('所有任務已取消');
+                updateTaskStatus();
+            } catch (error) {
+                showToast(`取消所有任務錯誤: ${error.message}`, 'danger');
+            }
+        }
+
+        // 定期更新任務狀態
+        setInterval(updateTaskStatus, 5000);
+        // 初始更新
+        updateTaskStatus();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</body>
+</html> 

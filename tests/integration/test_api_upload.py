@@ -34,5 +34,5 @@ def test_upload_wav():
     if response.status_code == 200:
         data = response.json()
         assert "id" in data
-        assert data["user_id"] == "test_user"
+        assert data["user_id"] == 1  # 修改為整數 1
         assert data["status"] in ("pending", "processing", "completed", "failed") 
